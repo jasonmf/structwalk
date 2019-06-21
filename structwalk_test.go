@@ -1,6 +1,9 @@
 package structwalk
 
 import (
+	"bytes"
+	"fmt"
+	"log"
 	"reflect"
 	"testing"
 	"time"
@@ -188,4 +191,36 @@ func FlattenValues(val interface{}) ([]interface{}, error) {
 		return nil, err
 	}
 	return values, nil
+}
+
+func TestFlattenFieldsEmptyInterface(t *testing.T) {
+	tTop := Top{
+		Mid1: Top{},
+	}
+	b := &bytes.Buffer{}
+	err := Recurse(tTop, func(v reflect.Value, sf reflect.StructField, name string) (bool, error) {
+		log.Printf("%s KIND: %v", name, sf.Type.Kind())
+		switch {
+		case !v.IsValid():
+			return false, nil
+		case sf.Type == typeTimeTime:
+			fmt.Fprintf(b, "%s=%s ", name, v.Interface().(time.Time).Format(time.RFC3339Nano))
+			return false, nil
+		case sf.Type.Kind() == reflect.Struct:
+			return true, nil
+		case sf.Type.Kind() == reflect.String:
+			fmt.Fprintf(b, "%s=%q ", name, v.String())
+			return false, nil
+		default:
+			fmt.Fprintf(b, "%s=%v ", name, v.Interface())
+			return false, nil
+		}
+	})
+	if err != nil {
+		t.Fatal("unexpected error: ", err.Error())
+	}
+	want := `Name="" Time=0001-01-01T00:00:00Z Mid1.Name="" Mid1.Time=0001-01-01T00:00:00Z Mid1.Mid2.Bottom=[] Mid2.Bottom=[] `
+	if string(b.Bytes()) != want {
+		t.Fatalf("got -%s-, want -%s-", string(b.Bytes()), want)
+	}
 }

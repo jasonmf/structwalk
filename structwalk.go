@@ -46,6 +46,9 @@ field:
 				if !v.IsValid() {
 					continue field
 				}
+				if v.IsNil() {
+					continue field
+				}
 				v = v.Elem()
 				f.Type = v.Type()
 			} else {
